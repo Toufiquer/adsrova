@@ -12,210 +12,154 @@ import Image from "next/image";
 import { useState } from "react";
 
 import ImagePickerModal from "@/components/dashboard-ui/ImagePickerModal";
-import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
-import { defaultCards, defaultData, defaultHomeCard, type HomeCard, type HomeData } from "./data";
+import { defaultData, parseCards, resolveHomeData, type HomeCard, type HomeData } from "./data";
 
-function parseCards(value: string | undefined): HomeCard[] {
-  try {
-    const parsed: unknown = JSON.parse(value ?? defaultData.sectionsJson);
-    return Array.isArray(parsed) && parsed.length
-      ? parsed.map((item) => ({
-          title: typeof item?.title === "string" ? item.title : "",
-          description: typeof item?.description === "string" ? item.description : "",
-        }))
-      : defaultCards;
-  } catch {
-    return defaultCards;
-  }
-}
-
+const sectionNames = [
+  "Trust & expertise",
+  "Our services",
+  "Google Ads",
+  "Facebook & Instagram Ads",
+  "Why choose Adsrova",
+  "Creative showcase",
+  "How we work",
+  "Industries",
+  "Results & case studies",
+  "Frequently asked questions",
+  "Contact & final CTA",
+];
 export default function Mutation({ data, onChange }: { data?: Partial<HomeData>; onChange: (data: HomeData) => void }) {
-  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
-  const [expandedCard, setExpandedCard] = useState<number | null>(0);
   const [mediaOpen, setMediaOpen] = useState(false);
-  const values = { ...defaultData, ...data };
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const values = resolveHomeData(data);
   const sections = parseCards(values.sectionsJson);
   const update = (next: Partial<HomeData>) => onChange({ ...values, ...next });
-  const updateCard = (index: number, card: HomeCard) => {
-    const next = sections.map((item, itemIndex) => (itemIndex === index ? card : item));
-    update({ sectionsJson: JSON.stringify(next) });
-  };
-  const addCard = () => {
-    update({ sectionsJson: JSON.stringify([...sections, { ...defaultHomeCard }]) });
-    setExpandedCard(sections.length);
-  };
-  const deleteCard = () => {
-    if (deleteIndex === null) return;
-    update({ sectionsJson: JSON.stringify(sections.filter((_, index) => index !== deleteIndex)) });
-    setExpandedCard(null);
-    setDeleteIndex(null);
-  };
-
+  const updateCard = (index: number, card: HomeCard) =>
+    update({ sectionsJson: JSON.stringify(sections.map((item, i) => (i === index ? card : item))) });
   return (
     <div className="custom-parent-border bg-[#fffaf0] text-stone-800">
-      <div className="mx-auto max-w-7xl">
-        <header className="flex flex-col gap-3 rounded-sm border border-[#eadfca] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[.16em] text-amber-700">Page editor</p>
-            <h2 className="mt-1 text-xl font-semibold text-stone-950">Home page content</h2>
-            <p className="mt-1 text-sm text-stone-500">Update the hero, image, and page sections in one place.</p>
+      <div className="mx-auto max-w-7xl space-y-4 p-4">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-[#eadfca] bg-white p-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-700">Page editor</p>
+            <h2 className="mt-1 text-xl font-semibold">Home page content</h2>
+            <p className="mt-1 text-sm text-stone-500">Edit the hero and the eleven fixed sections below.</p>
           </div>
-          <div className="flex items-center gap-3 rounded-sm border border-[#eadfca] bg-[#fffaf0] px-3 py-2">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-stone-800">Force update</p>
-              <p className="text-xs text-stone-500">Saved Home content is used on the public page.</p>
-            </div>
+          <label className="flex items-center gap-3 text-sm">
+            Force update{" "}
             <Switch
-              aria-label="Toggle Force Update"
               checked={values.forceUpdate === "true"}
-              onCheckedChange={(forceUpdate) => update({ forceUpdate: forceUpdate ? "true" : "false" })}
+              onCheckedChange={(checked) => update({ forceUpdate: checked ? "true" : "false" })}
             />
-          </div>
+          </label>
         </header>
-
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
-          <section className="rounded-sm border border-[#eadfca] bg-white p-4 sm:p-5">
-            <SectionTitle description="The first content visitors see on your home page." title="Hero content" />
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Eyebrow" onChange={(eyebrow) => update({ eyebrow })} value={values.eyebrow} />
-              <Field label="Hero title" onChange={(title) => update({ title })} value={values.title} />
-              <label className="grid gap-1.5 text-sm font-medium text-stone-700 sm:col-span-2">
-                Introduction
-                <Textarea
-                  className="min-h-28 resize-y"
-                  onChange={(event) => update({ intro: event.target.value })}
-                  value={values.intro}
-                />
-              </label>
-            </div>
-            <div className="mt-5 grid gap-3 border-t border-[#eadfca] pt-4 sm:grid-cols-2">
-              <PaddingControl
-                label="Padding X"
-                value={values.paddingX}
-                onValueChange={(paddingX) => update({ paddingX })}
-              />
-              <PaddingControl
-                label="Padding Y"
-                value={values.paddingY}
-                onValueChange={(paddingY) => update({ paddingY })}
-              />
+        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+          <section className="space-y-4 rounded-sm border border-[#eadfca] bg-white p-4">
+            <h3 className="font-semibold">Hero content</h3>
+            <Field label="Eyebrow" value={values.eyebrow} onChange={(eyebrow) => update({ eyebrow })} />
+            <Field label="Headline" value={values.title} onChange={(title) => update({ title })} />
+            <label className="grid gap-1 text-sm">
+              Introduction
+              <Textarea value={values.intro} onChange={(e) => update({ intro: e.target.value })} />
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {(["paddingX", "paddingY"] as const).map((key) => (
+                <label className="grid gap-2 text-sm" key={key}>
+                  {key === "paddingX" ? "Horizontal" : "Vertical"} padding: {values[key]}px
+                  <Slider
+                    aria-label={key}
+                    min={0}
+                    max={300}
+                    step={1}
+                    value={[Number(values[key]) || 0]}
+                    onValueChange={([value]) => update({ [key]: value ?? 0 })}
+                  />
+                </label>
+              ))}
             </div>
           </section>
-
           <section className="rounded-sm border border-[#eadfca] bg-white p-4">
-            <SectionTitle description="Choose an image from Media Library." title="Hero image" />
-            <Image
-              alt={values.imageAlt || defaultData.imageAlt}
-              className="mt-4 aspect-[16/10] w-full rounded-sm border border-[#eadfca] bg-[#fffaf0] object-cover"
-              height={380}
-              src={values.imageUrl || defaultData.imageUrl}
-              width={608}
-            />
+            <h3 className="font-semibold">Hero image</h3>
+            <p className="mt-1 text-sm text-stone-500">Choose an image from the media library.</p>
+            {values.imageUrl ? (
+              <Image
+                className="mt-3 aspect-video w-full rounded-sm object-cover"
+                src={values.imageUrl}
+                alt={values.imageAlt || defaultData.imageAlt}
+                width={600}
+                height={338}
+                unoptimized
+              />
+            ) : (
+              <div className="mt-3 grid aspect-video place-items-center bg-sky-50 text-sm text-sky-800">
+                Default workspace image
+              </div>
+            )}
             <Button
-              className="mt-3 w-full cursor-pointer bg-amber-100 text-amber-900 transition duration-700 hover:bg-amber-200"
-              onClick={() => setMediaOpen(true)}
               size="sm"
               type="button"
-              variant="secondary"
+              onClick={() => setMediaOpen(true)}
+              className="mt-3 w-full cursor-pointer bg-amber-100 text-amber-900 transition duration-700 hover:bg-amber-200"
             >
               Edit image
             </Button>
-            <label className="mt-3 grid gap-1.5 text-sm font-medium text-stone-700">
-              Image alt text
-              <Input onChange={(event) => update({ imageAlt: event.target.value })} value={values.imageAlt} />
-            </label>
+            <div className="mt-3">
+              <Field label="Image alt text" value={values.imageAlt} onChange={(imageAlt) => update({ imageAlt })} />
+            </div>
           </section>
         </div>
-
-        <section className="mt-4 rounded-sm border border-[#eadfca] bg-white p-4 sm:p-5">
-          <div className="flex flex-col gap-3 border-b border-[#eadfca] pb-4 sm:flex-row sm:items-center sm:justify-between">
-            <SectionTitle
-              description={`${sections.length} section${sections.length === 1 ? "" : "s"} shown on the page.`}
-              title="Page sections"
-            />
-            <Button
-              className="cursor-pointer bg-amber-100 text-amber-900 transition duration-700 hover:bg-amber-200"
-              onClick={addCard}
-              size="sm"
-              type="button"
-              variant="secondary"
-            >
-              Add section
-            </Button>
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            {sections.map((card, index) => {
-              const isOpen = expandedCard === index;
-              return (
-                <article className="overflow-hidden rounded-sm border border-[#eadfca] bg-[#fffdf8]" key={index}>
-                  <div className="flex gap-3 p-3 sm:items-center sm:p-4">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-amber-100 text-xs font-semibold text-amber-900">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <button
-                      className="min-w-0 flex-1 cursor-pointer text-left"
-                      onClick={() => setExpandedCard(isOpen ? null : index)}
-                      type="button"
-                    >
-                      <p className="truncate text-sm font-semibold text-stone-900">
-                        {card.title || "Untitled section"}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-stone-500">
-                        {card.description || "No description added"}
-                      </p>
-                    </button>
-                    <div className="flex shrink-0 gap-2">
-                      <Button
-                        className="cursor-pointer bg-amber-100 text-amber-900 transition duration-700 hover:bg-amber-200"
-                        onClick={() => setExpandedCard(isOpen ? null : index)}
-                        size="sm"
-                        type="button"
-                        variant="secondary"
-                      >
-                        {isOpen ? "Close" : "Edit"}
-                      </Button>
-                      <Button
-                        className="cursor-pointer bg-red-100 text-red-800 transition duration-700 hover:bg-red-200"
-                        onClick={() => setDeleteIndex(index)}
-                        size="sm"
-                        type="button"
-                        variant="destructive"
-                      >
-                        Delete
-                      </Button>
-                    </div>
+        <section className="rounded-sm border border-[#eadfca] bg-white p-4">
+          <h3 className="font-semibold">Page sections</h3>
+          <p className="mt-1 text-sm text-stone-500">
+            The homepage contains exactly twelve sections. Edit each section’s heading and introduction here.
+          </p>
+          <div className="mt-4 grid gap-2">
+            {sections.map((card, index) => (
+              <article className="rounded-sm border border-[#eadfca] bg-[#fffdf8]" key={sectionNames[index]}>
+                <div className="flex items-center gap-3 p-3">
+                  <span className="text-xs font-semibold text-blue-700">{String(index + 2).padStart(2, "0")}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{sectionNames[index]}</p>
+                    <p className="truncate text-xs text-stone-500" title={card.title}>
+                      {card.title}
+                    </p>
                   </div>
-                  {isOpen && (
-                    <div className="grid gap-4 border-t border-[#eadfca] bg-white p-3 sm:p-4">
-                      <Field
-                        label="Section title"
-                        onChange={(title) => updateCard(index, { ...card, title })}
-                        value={card.title}
+                  <Button
+                    size="sm"
+                    type="button"
+                    className="cursor-pointer bg-amber-100 text-amber-900 transition duration-700 hover:bg-amber-200"
+                    aria-expanded={expanded === index}
+                    onClick={() => setExpanded(expanded === index ? null : index)}
+                  >
+                    {expanded === index ? "Close" : "Edit"}
+                  </Button>
+                </div>
+                {expanded === index && (
+                  <div className="grid gap-3 border-t border-[#eadfca] bg-white p-3">
+                    <Field
+                      label="Section heading"
+                      value={card.title}
+                      onChange={(title) => updateCard(index, { ...card, title })}
+                    />
+                    <label className="grid gap-1 text-sm">
+                      Introduction
+                      <Textarea
+                        value={card.description}
+                        onChange={(e) => updateCard(index, { ...card, description: e.target.value })}
                       />
-                      <label className="grid gap-1.5 text-sm font-medium text-stone-700">
-                        Section description
-                        <Textarea
-                          className="min-h-24 resize-y"
-                          onChange={(event) => updateCard(index, { ...card, description: event.target.value })}
-                          value={card.description}
-                        />
-                      </label>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
+                    </label>
+                  </div>
+                )}
+              </article>
+            ))}
           </div>
         </section>
       </div>
-
       {mediaOpen && (
         <ImagePickerModal
           close={() => setMediaOpen(false)}
@@ -224,71 +168,19 @@ export default function Mutation({ data, onChange }: { data?: Partial<HomeData>;
             update({ imageUrl });
             setMediaOpen(false);
           }}
+          selectedUrl={values.imageUrl}
           title="Choose home image"
           uploadLabel="Upload home image"
         />
       )}
-      <AlertDialog
-        confirmLabel="Delete section"
-        description={deleteIndex === null ? "" : `Section ${deleteIndex + 1} will be removed from this home page.`}
-        onCancel={() => setDeleteIndex(null)}
-        onConfirm={deleteCard}
-        open={deleteIndex !== null}
-        title="Delete this section?"
-      />
     </div>
   );
 }
-
-function SectionTitle({ title, description }: { title: string; description: string }) {
-  return (
-    <div>
-      <h3 className="text-base font-semibold text-stone-900">{title}</h3>
-      <p className="mt-1 text-sm text-stone-500">{description}</p>
-    </div>
-  );
-}
-
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="grid gap-1.5 text-sm font-medium text-stone-700">
+    <label className="grid gap-1 text-sm">
       {label}
-      <Input onChange={(event) => onChange(event.target.value)} value={value} />
+      <Input value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
-  );
-}
-
-function PaddingControl({
-  label,
-  value,
-  onValueChange,
-}: {
-  label: string;
-  value: number;
-  onValueChange: (value: number) => void;
-}) {
-  return (
-    <div className="rounded-sm border border-[#eadfca] bg-[#fffaf0] p-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-stone-800">{label}</p>
-        <span className="rounded-sm bg-white px-2 py-1 text-xs font-semibold tabular-nums text-amber-900">
-          {value}px
-        </span>
-      </div>
-      <Slider
-        aria-label={label}
-        className="mt-3 accent-amber-600"
-        max={300}
-        min={-300}
-        onValueChange={([next]) => onValueChange(Math.min(300, Math.max(-300, next ?? 0)))}
-        step={1}
-        value={[value]}
-      />
-      <div className="mt-2 flex justify-between text-[11px] text-stone-500">
-        <span>-300</span>
-        <span>0</span>
-        <span>300</span>
-      </div>
-    </div>
   );
 }
